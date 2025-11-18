@@ -8,8 +8,7 @@
 //bagoooo
 //bagoooo
 //ano naaa
-//shesh
-
+// ano na plss
 import Foundation
 import SwiftData
 
