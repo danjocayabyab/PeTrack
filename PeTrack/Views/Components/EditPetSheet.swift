@@ -130,7 +130,7 @@ struct EditPetSheet: View {
                                     .padding(.horizontal, 16).padding(.vertical, 10)
                                     .background(RoundedRectangle(cornerRadius: 10).stroke(Color.gray.opacity(0.35)))
                             }
-                            .onChange(of: photoItem) { newItem in
+                            .onChange(of: photoItem) { oldItem, newItem in
                                 Task {
                                     if let data = try? await newItem?.loadTransferable(type: Data.self),
                                        let img = UIImage(data: data) { selectedImage = img }
@@ -178,23 +178,17 @@ struct EditPetSheet: View {
         guard !breed.trimmingCharacters(in: .whitespaces).isEmpty else { return }
         guard gender == "Male" || gender == "Female" else { return }
 
-        let ageString = "\(ageYears) year" + (ageYears == 1 ? "" : "s") + " old"
-        let weightString = String(format: "%.1f kg", weightKg)
-        let avatarColor = normalizedAvatarColor(from: colorText)
-
-        let updated = Pet(
-            id: original.id, // keep same id
-            name: name,
-            breed: breed,
-            age: ageString,
-            ageInYears: ageYears,
-            gender: gender,
-            weight: weightString,
-            imageURL: original.imageURL, // hook up Storage later
-            avatarColor: avatarColor
-        )
-
-        onSave(updated)
+        // Update the original pet's properties directly
+        original.name = name
+        original.breed = breed
+        original.gender = gender
+        original.ageInYears = ageYears
+        original.age = "\(ageYears) year" + (ageYears == 1 ? "" : "s") + " old"
+        original.weight = String(format: "%.1f kg", weightKg)
+        original.avatarColor = normalizedAvatarColor(from: colorText)
+        
+        // Call onSave with the updated pet
+        onSave(original)
         dismiss()
     }
 

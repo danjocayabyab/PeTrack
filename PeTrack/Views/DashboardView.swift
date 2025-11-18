@@ -7,9 +7,26 @@
 
 // MARK: - Views/DashboardView.swift
 import SwiftUI
+import SwiftData
 
 struct DashboardView: View {
-    @StateObject private var viewModel = DashboardViewModel()
+    @Environment(\.modelContext) private var modelContext
+    @Query(sort: \Pet.name) private var pets: [Pet]
+    @Query(sort: \Activity.timestamp, order: .reverse) private var activities: [Activity]
+    
+    private var formattedDate: String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .long
+        formatter.timeStyle = .none
+        return formatter.string(from: Date())
+    }
+    
+    private var todaysActivities: [Activity] {
+        let calendar = Calendar.current
+        return activities.filter { activity in
+            calendar.isDateInToday(activity.timestamp)
+        }
+    }
     
     var body: some View {
         ScrollView {
@@ -32,7 +49,7 @@ struct DashboardView: View {
         .background(Color(UIColor.systemGroupedBackground))
     }
     
-    // MARK: Header (unchanged)
+    // MARK: Header
     private var headerSection: some View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
@@ -43,7 +60,7 @@ struct DashboardView: View {
                     Image(systemName: "pawprint.fill")
                         .foregroundColor(.blue)
                 }
-                Text("Today is \(viewModel.getCurrentDate())")
+                Text("Today is \(formattedDate)")
                     .font(.subheadline)
                     .foregroundColor(.gray)
             }
@@ -52,31 +69,31 @@ struct DashboardView: View {
         .padding(.top, 20)
     }
     
-    // MARK: Stats (match StatCard API: icon, number, title, backgroundColor)
+    // MARK: Stats
     private var statsSection: some View {
         HStack(spacing: 12) {
             StatCard(
                 icon: "🐾",
-                number: "\(viewModel.totalPets)",
+                number: "\(pets.count)",
                 title: "Total Pets",
                 backgroundColor: Color.blue.opacity(0.8)
             )
             StatCard(
                 icon: "📋",
-                number: "\(viewModel.todaysTasks)",
+                number: "\(todaysActivities.count)",
                 title: "Today's Tasks",
                 backgroundColor: Color.blue.opacity(0.6)
             )
             StatCard(
                 icon: "✓",
-                number: "\(viewModel.completedTasks)",
+                number: "\(todaysActivities.filter { $0.isCompleted }.count)",
                 title: "Completed",
                 backgroundColor: Color.blue.opacity(0.4)
             )
         }
     }
     
-    // MARK: Activities (match ActivityRow API: activity, onToggle)
+    // MARK: Activities Section
     private var activitiesSection: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
@@ -89,10 +106,22 @@ struct DashboardView: View {
                 Spacer()
             }
             
-            LazyVStack(spacing: 12) {
-                ForEach(viewModel.activities) { activity in
-                    ActivityRow(activity: activity) {
-                        viewModel.toggleActivityCompletion(activity)
+            if todaysActivities.isEmpty {
+                Text("No activities for today")
+                    .foregroundColor(.gray)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding()
+            } else {
+                LazyVStack(spacing: 12) {
+                    ForEach(todaysActivities) { activity in
+                        ActivityRow(activity: activity) {
+                            activity.isCompleted.toggle()
+                            do {
+                                try modelContext.save()
+                            } catch {
+                                print("Failed to update activity: \(error)")
+                            }
+                        }
                     }
                 }
             }
@@ -103,18 +132,33 @@ struct DashboardView: View {
     private var petsSection: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
-                Image(systemName: "heart")
+                Image(systemName: "pawprint.fill")
                     .foregroundColor(.blue)
                     .font(.title2)
                 Text("My Pets")
                     .font(.title3)
                     .fontWeight(.semibold)
                 Spacer()
+                NavigationLink(destination: MyPetsView()) {
+                    Text("See All")
+                        .font(.subheadline)
+                        .foregroundColor(.blue)
+                }
             }
             
-            HStack(spacing: 12) {
-                ForEach(viewModel.pets) { pet in
-                    PetCard(pet: pet)
+            if pets.isEmpty {
+                Text("No pets added yet")
+                    .foregroundColor(.gray)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding()
+            } else {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 16) {
+                        ForEach(pets.prefix(5)) { pet in
+                            PetCard(pet: pet)
+                        }
+                    }
+                    .padding(.horizontal)
                 }
             }
         }

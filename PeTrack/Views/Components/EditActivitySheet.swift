@@ -40,7 +40,7 @@ struct EditActivitySheet: View {
     }
 
     var body: some View {
-        AddActivitySheet(pets: pets) { updated in
+        AddActivitySheet(pets: pets, isEditMode: true, onSave: { updated in
             // Keep the same id and isDone/completed flags
             let final = Activity(
                 id: original.id,
@@ -55,10 +55,10 @@ struct EditActivitySheet: View {
                 location: updated.location
             )
             onSave(final)
-        }
-        // preload fields by wrapping AddActivitySheet UI via environment values
+        })
+        // Set initial values
         .onAppear {
-            // nothing else required because we pass via init; using wrapper approach to keep identical UI
+            // Values are already set in the initializer
         }
     }
 

@@ -149,9 +149,9 @@ struct AddPetSheet: View {
                                     .padding(.vertical, 10)
                                     .background(RoundedRectangle(cornerRadius: 10).stroke(Color.gray.opacity(0.35), lineWidth: 1))
                             }
-                            .onChange(of: photoItem) { newItem in
+                            .onChange(of: photoItem) { oldValue, newValue in
                                 Task {
-                                    if let data = try? await newItem?.loadTransferable(type: Data.self),
+                                    if let data = try? await newValue?.loadTransferable(type: Data.self),
                                        let img = UIImage(data: data) {
                                         selectedImage = img
                                     }
@@ -207,13 +207,24 @@ struct AddPetSheet: View {
     // MARK: - Build Pet + Save
     private func handleSave() {
         // Basic validation
-        guard !name.trimmingCharacters(in: .whitespaces).isEmpty else { return }
-        guard !breed.trimmingCharacters(in: .whitespaces).isEmpty else { return }
-        guard gender == "Male" || gender == "Female" else { return }
+        guard !name.trimmingCharacters(in: .whitespaces).isEmpty else {
+            print("Validation failed: Name is empty")
+            return
+        }
+        guard !breed.trimmingCharacters(in: .whitespaces).isEmpty else {
+            print("Validation failed: Breed is empty")
+            return
+        }
+        guard gender == "Male" || gender == "Female" else {
+            print("Validation failed: Invalid gender")
+            return
+        }
 
         let ageString = "\(ageYears) year" + (ageYears == 1 ? "" : "s") + " old"
         let weightString = String(format: "%.1f kg", weightKg)
         let avatarColor = normalizedAvatarColor(from: colorText)
+        
+        print("Creating new pet with name: \(name), breed: \(breed)")
 
         let newPet = Pet(
             name: name,
@@ -222,11 +233,14 @@ struct AddPetSheet: View {
             ageInYears: ageYears,
             gender: gender,
             weight: weightString,
-            imageURL: nil,              // Firebase Storage later if you upload `selectedImage`
-            avatarColor: avatarColor
+            imageURL: nil,
+            avatarColor: avatarColor,
+            timestamp: Date()
         )
-
+        
+        print("New pet created: \(newPet)")
         onSave(newPet)
+        print("Pet saved, dismissing sheet")
         dismiss()
     }
 

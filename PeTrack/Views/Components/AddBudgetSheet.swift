@@ -50,8 +50,8 @@ struct AddBudgetSheet: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.horizontal, 12).padding(.vertical, 10)
                         .background(RoundedRectangle(cornerRadius: 10).fill(Color.gray.opacity(0.12)))
-                        .onChange(of: category) { new in
-                            if let p = presets.first(where: { $0.name == new }) {
+                        .onChange(of: category) { oldValue, newValue in
+                            if let p = presets.first(where: { $0.name == newValue }) {
                                 icon = p.icon; tintHex = p.tint
                             }
                         }

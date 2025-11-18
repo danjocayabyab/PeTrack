@@ -10,6 +10,7 @@ import SwiftUI
 struct AddActivitySheet: View {
     // Provide list of pets for the "Pet" picker
     let pets: [Pet]
+    var isEditMode: Bool = false
     var onSave: (Activity) -> Void
     @Environment(\.dismiss) private var dismiss
 
@@ -27,11 +28,11 @@ struct AddActivitySheet: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 16) {
-                    Text("Add New Activity")
+                    Text(isEditMode ? "Edit Activity" : "Add New Activity")
                         .font(.system(size: 22, weight: .bold))
                         .padding(.top, 6)
 
-                    Text("Create a new scheduled activity for your pet.")
+                    Text(isEditMode ? "Update the scheduled activity for your pet." : "Create a new scheduled activity for your pet.")
                         .font(.system(size: 14))
                         .foregroundColor(.gray)
 
@@ -117,7 +118,7 @@ struct AddActivitySheet: View {
                     Button {
                         handleSave()
                     } label: {
-                        Text("Add Activity")
+                        Text(isEditMode ? "Save Changes" : "Add Activity")
                             .font(.system(size: 16, weight: .semibold))
                             .foregroundColor(.white)
                             .frame(maxWidth: .infinity)
