@@ -5,6 +5,8 @@
 //  Created by STUDENT on 9/2/25.
 //
 
+//bagoooo
+
 import Foundation
 import SwiftData
 
