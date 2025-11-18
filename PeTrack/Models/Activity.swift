@@ -5,15 +5,14 @@
 //  Created by STUDENT on 9/2/25.
 //
 
-//bagoooo
-//bagoooo
-//ano naaa
-// ano na plss
 import Foundation
+import SwiftUI
 import SwiftData
 
 @Model
-final class Activity {
+final class Activity: Identifiable {
+    // Add a version identifier for model migration
+    static let schemaVersion = "ActivityV2"
     enum ActivityType: String, CaseIterable, Codable {
         case feeding = "feeding"
         case walk = "walk"
@@ -31,6 +30,7 @@ final class Activity {
             case .grooming:                     return "✂️"
             }
         }
+        
         var color: String {
             switch self {
             case .morningWalk, .walk:           return "green"
@@ -40,8 +40,8 @@ final class Activity {
             }
         }
     }
-
-    var id: UUID
+    
+    @Attribute(.unique) var id: UUID
     var title: String
     var petName: String
     var time: String
@@ -51,7 +51,8 @@ final class Activity {
     var isCompleted: Bool
     var isDone: Bool
     var location: String?
-
+    var timestamp: Date = Date()
+    
     init(id: UUID = UUID(),
          title: String,
          petName: String,
@@ -61,7 +62,8 @@ final class Activity {
          note: String? = nil,
          isCompleted: Bool = false,
          isDone: Bool = false,
-         location: String? = nil) {
+         location: String? = nil,
+         timestamp: Date = .now) {
         self.id = id
         self.title = title
         self.petName = petName
@@ -72,11 +74,6 @@ final class Activity {
         self.isCompleted = isCompleted
         self.isDone = isDone
         self.location = location
+        self.timestamp = timestamp
     }
-
-    static let mockScheduleActivities: [Activity] = [
-        Activity(title: "Morning Walk", petName: "Buddy", time: "7:00 AM", type: .morningWalk, frequency: "daily", note: "Regular morning exercise", location: "Neighborhood Park"),
-        Activity(title: "Breakfast",    petName: "Buddy", time: "8:00 AM", type: .breakfast,   frequency: "daily"),
-        Activity(title: "Dinner",       petName: "Luna",  time: "6:00 PM", type: .dinner,      frequency: "daily")
-    ]
 }

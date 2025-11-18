@@ -4,8 +4,9 @@ import SwiftData
 struct ExpensesScreen: View {
     @Environment(\.modelContext) private var modelContext
 
-    // Pull budgets/expenses from SwiftData (simple & reliable)
+    // Pull data from SwiftData
     @Query(sort: \Budget.category) private var budgets: [Budget]
+    @Query(sort: \Pet.name) private var pets: [Pet]
     @Query(sort: \Expense.date, order: .reverse) private var expenses: [Expense]
 
     // UI state
@@ -13,7 +14,11 @@ struct ExpensesScreen: View {
     @State private var segment: Segment = .expenses
     @State private var showAddExpense = false
     @State private var showAddBudget  = false
-    @State private var alertBudget: Budget?
+    @State private var alertBudget: Budget? {
+        didSet {
+            print("alertBudget changed to: \(String(describing: alertBudget?.category))")
+        }
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -30,17 +35,31 @@ struct ExpensesScreen: View {
         }
         // Sheets
         .sheet(isPresented: $showAddExpense) {
-            AddExpenseSheet(pets: Pet.mockPets, existingBudgets: budgets) { new in
-                // persist expense
-                modelContext.insert(new)
-                // bump the matching budget
-                if let b = budgets.first(where: { $0.category == new.category }) {
-                    b.spent += new.amount
-                    maybeAlert(b)
+            if !budgets.isEmpty {
+                AddExpenseSheet(pets: pets, existingBudgets: budgets) { new in
+                    // persist expense
+                    modelContext.insert(new)
+                    // bump the matching budget
+                    if let b = budgets.first(where: { $0.category == new.category }) {
+                        b.spent += new.amount
+                        maybeAlert(b)
+                    }
+                    try? modelContext.save()
                 }
-                try? modelContext.save()
+                .presentationDetents([.large])
+            } else {
+                VStack {
+                    Text("No budget categories available.")
+                        .font(.headline)
+                        .padding()
+                    Text("Please add a budget category first.")
+                        .foregroundColor(.secondary)
+                    Button("Add Budget Category") {
+                        showAddBudget = true
+                    }
+                    .padding()
+                }
             }
-            .presentationDetents([.large])
         }
         .sheet(isPresented: $showAddBudget) {
             AddBudgetSheet { new in
@@ -49,11 +68,22 @@ struct ExpensesScreen: View {
             }
             .presentationDetents([.large])
         }
-        // Overspend alert
         .alert(item: $alertBudget) { b in
-            Alert(
-                title: Text("Budget Alert"),
-                message: Text("₱\(Int(b.spent)) of ₱\(Int(b.limit)) in “\(b.category)”. You’ve reached \(b.alertThreshold)% of your budget."),
+            let percentage = Int((b.spent / b.limit) * 100)
+            let isExceeded = b.spent > b.limit
+            let title = isExceeded ? "Budget Exceeded!" : "Budget Alert"
+            let message: Text
+            
+            if isExceeded {
+                let overAmount = b.spent - b.limit
+                message = Text("You have exceeded your budget for \"\(b.category)\" by ₱\(Int(overAmount)). Consider reviewing your expenses.")
+            } else {
+                message = Text("₱\(Int(b.spent)) of ₱\(Int(b.limit)) in \"\(b.category)\". You've reached \(percentage)% of your budget.")
+            }
+            
+            return Alert(
+                title: Text(title),
+                message: message,
                 dismissButton: .default(Text("OK"))
             )
         }
@@ -124,8 +154,23 @@ struct ExpensesScreen: View {
     }
 
     private func maybeAlert(_ b: Budget) {
-        if b.progress >= Double(b.alertThreshold) / 100.0 {
-            alertBudget = b
+        let currentPercentage = (b.spent / b.limit) * 100.0
+        print("Checking alert for \(b.category): \(currentPercentage)% >= \(b.alertThreshold)%")
+        if currentPercentage >= Double(b.alertThreshold) {
+            print("Showing alert for \(b.category)")
+            // Create a new instance to force view update
+            let updatedBudget = Budget(
+                id: b.id,
+                category: b.category,
+                limit: b.limit,
+                spent: b.spent,
+                icon: b.icon,
+                tintHex: b.tintHex,
+                alertThreshold: b.alertThreshold
+            )
+            DispatchQueue.main.async {
+                self.alertBudget = updatedBudget
+            }
         }
     }
 }

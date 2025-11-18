@@ -7,36 +7,67 @@
 
 import Foundation
 import SwiftUI
+import SwiftData
 
 @MainActor
 class ScheduleViewModel: ObservableObject {
-    @Published var scheduleActivities: [Activity] = Activity.mockScheduleActivities
+    @Published private(set) var scheduleActivities: [Activity] = []
+    internal var modelContext: ModelContext
+    
+    init(modelContext: ModelContext) {
+        self.modelContext = modelContext
+        fetchActivities()
+    }
     
     // MARK: - Computed Properties
     var todaysActivities: [Activity] {
-        scheduleActivities
+        scheduleActivities.filter { activity in
+            let calendar = Calendar.current
+            return calendar.isDateInToday(activity.timestamp)
+        }
     }
     
     // MARK: - Core Actions
     func markActivityAsDone(_ activity: Activity) {
-        if let index = scheduleActivities.firstIndex(where: { $0.id == activity.id }) {
-            scheduleActivities[index].isDone = true
-            scheduleActivities[index].isCompleted = true
-        }
+        activity.isDone = true
+        activity.isCompleted = true
+        saveContext()
     }
     
     func deleteActivity(_ activity: Activity) {
-        scheduleActivities.removeAll { $0.id == activity.id }
+        modelContext.delete(activity)
+        saveContext()
+        fetchActivities()
     }
     
     func addActivity(_ newActivity: Activity) {
-        // Add at the top for visibility
-        scheduleActivities.insert(newActivity, at: 0)
+        modelContext.insert(newActivity)
+        saveContext()
+        fetchActivities()
     }
     
     func updateActivity(_ updatedActivity: Activity) {
-        if let index = scheduleActivities.firstIndex(where: { $0.id == updatedActivity.id }) {
-            scheduleActivities[index] = updatedActivity
+        saveContext()
+        fetchActivities()
+    }
+    
+    // MARK: - Data Operations
+    func fetchActivities() {
+        let descriptor = FetchDescriptor<Activity>(
+            sortBy: [SortDescriptor(\.timestamp, order: .reverse)]
+        )
+        do {
+            scheduleActivities = try modelContext.fetch(descriptor)
+        } catch {
+            print("Failed to fetch activities: \(error.localizedDescription)")
+        }
+    }
+    
+    private func saveContext() {
+        do {
+            try modelContext.save()
+        } catch {
+            print("Failed to save context: \(error.localizedDescription)")
         }
     }
     

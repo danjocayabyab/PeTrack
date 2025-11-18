@@ -10,15 +10,22 @@ import SwiftData
 
 struct ScheduleView: View {
     @Environment(\.modelContext) private var modelContext
-
+    
     // Local UI state
     @State private var showAdd = false
     @State private var showEdit = false
     @State private var showDetail = false
     @State private var selectedActivity: Activity?
 
-    // We still keep your simple in-memory VM to drive the UI
-    @StateObject private var viewModel = ScheduleViewModel()
+    // ViewModel for schedule management
+    @StateObject private var viewModel: ScheduleViewModel
+    
+    init() {
+        // Initialize with a temporary model context, will be updated in onAppear
+        let config = ModelConfiguration(isStoredInMemoryOnly: true)
+        let container = try! ModelContainer(for: Activity.self, configurations: config)
+        _viewModel = StateObject(wrappedValue: ScheduleViewModel(modelContext: container.mainContext))
+    }
 
     // Pets for the picker (you can switch to @Query later)
     @Query(sort: \Pet.name) private var pets: [Pet]
@@ -93,18 +100,23 @@ struct ScheduleView: View {
         }
         // Sheets
         .sheet(isPresented: $showAdd) {
-            AddActivitySheet(pets: pets.isEmpty ? Pet.mockPets : pets) { new in
-                // persist
-                modelContext.insert(new)
-                try? modelContext.save()
-                // keep VM in sync
-                viewModel.addActivity(new)
+            if !pets.isEmpty {
+                AddActivitySheet(pets: pets) { new in
+                    // persist
+                    modelContext.insert(new)
+                    try? modelContext.save()
+                    // keep VM in sync
+                    viewModel.addActivity(new)
+                }
+                .presentationDetents([.large])
+            } else {
+                Text("No pets available. Please add a pet first.")
+                    .padding()
             }
-            .presentationDetents([.large])
         }
         .sheet(isPresented: $showEdit) {
-            if let act = selectedActivity {
-                EditActivitySheet(original: act, pets: pets.isEmpty ? Pet.mockPets : pets) { updated in
+            if let act = selectedActivity, !pets.isEmpty {
+                EditActivitySheet(original: act, pets: pets) { updated in
                     // update stored object fields
                     act.title = updated.title
                     act.petName = updated.petName
@@ -125,17 +137,10 @@ struct ScheduleView: View {
             }
         }
         .onAppear {
-            // Bootstrap VM from SwiftData (once)
+            // Re-initialize the view model with the correct context
             if viewModel.todaysActivities.isEmpty {
-                let fd = FetchDescriptor<Activity>()
-                if let stored = try? modelContext.fetch(fd), !stored.isEmpty {
-                    viewModel.scheduleActivities = stored
-                } else {
-                    // fall back to mocks (and persist them once)
-                    viewModel.scheduleActivities = Activity.mockScheduleActivities
-                    Activity.mockScheduleActivities.forEach { modelContext.insert($0) }
-                    try? modelContext.save()
-                }
+                viewModel.modelContext = modelContext
+                viewModel.fetchActivities()
             }
         }
     }

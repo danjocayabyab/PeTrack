@@ -7,11 +7,21 @@
 
 import Foundation
 import SwiftUI
+import SwiftData
 
+@MainActor
 class DashboardViewModel: ObservableObject {
-    @Published var pets: [Pet] = Pet.mockPets
-    @Published var activities: [Activity] = Activity.mockActivities
+    @Published private(set) var pets: [Pet] = []
+    @Published private(set) var activities: [Activity] = []
     @Published var selectedTab = 0
+    
+    private let modelContext: ModelContext
+    
+    init(modelContext: ModelContext) {
+        self.modelContext = modelContext
+        fetchPets()
+        fetchActivities()
+    }
     
     var totalPets: Int {
         pets.count
@@ -25,9 +35,57 @@ class DashboardViewModel: ObservableObject {
         activities.filter { $0.isCompleted }.count
     }
     
+    // MARK: - Activity Management
     func toggleActivityCompletion(_ activity: Activity) {
-        if let index = activities.firstIndex(where: { $0.id == activity.id }) {
-            activities[index].isCompleted.toggle()
+        activity.isCompleted.toggle()
+        saveContext()
+    }
+    
+    func addActivity(_ activity: Activity) {
+        modelContext.insert(activity)
+        saveContext()
+        fetchActivities()
+    }
+    
+    func updateActivity(_ activity: Activity) {
+        saveContext()
+        fetchActivities()
+    }
+    
+    func deleteActivity(_ activity: Activity) {
+        modelContext.delete(activity)
+        saveContext()
+        fetchActivities()
+    }
+    
+    // MARK: - Private Helpers
+    private func fetchActivities() {
+        let descriptor = FetchDescriptor<Activity>(
+            sortBy: [SortDescriptor(\.timestamp, order: .reverse)]
+        )
+        do {
+            activities = try modelContext.fetch(descriptor)
+        } catch {
+            print("Failed to fetch activities: \(error.localizedDescription)")
+        }
+    }
+    
+    private func fetchPets() {
+        let descriptor = FetchDescriptor<Pet>(
+            sortBy: [SortDescriptor(\.name)]
+        )
+        do {
+            pets = try modelContext.fetch(descriptor)
+        } catch {
+            print("Failed to fetch pets: \(error.localizedDescription)")
+        }
+    }
+    
+    private func saveContext() {
+        do {
+            try modelContext.save()
+        } catch {
+            print("Failed to save context: \(error.localizedDescription)")
         }
     }
     
